@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 """
-PDF ingestion script.
+PDF ingestion script — canonical CLI entry point for document indexing.
 
-This script wraps the semantic_chunker for easier command-line usage.
-It provides a simpler interface for indexing documents.
+This script provides a simplified interface for indexing PDF documents
+into Qdrant. For advanced options (custom model, threshold, search),
+use the underlying module directly:
+
+    python -m database.semantic_chunker index ./archives/ --threshold 0.8
+    python -m database.semantic_chunker search "correção de solo"
 
 Usage:
     python scripts/ingest.py ./archives/
     python scripts/ingest.py ./archives/document.pdf
-
-The actual indexing logic is in database/semantic_chunker.py.
 """
 
 import sys
@@ -26,7 +28,11 @@ def main() -> None:
     """Entry point for the ingest script."""
     if len(sys.argv) < 2:
         print("Usage: python scripts/ingest.py <path>")
-        print("  <path> can be a directory or a PDF file")
+        print("  <path> can be a directory of PDFs or a single PDF file")
+        print()
+        print("For advanced options, use the underlying module:")
+        print("  python -m database.semantic_chunker index <path> [--model MODEL] [--threshold N]")
+        print("  python -m database.semantic_chunker search <query> [--top-k N]")
         sys.exit(1)
 
     # Forward to semantic_chunker with 'index' command

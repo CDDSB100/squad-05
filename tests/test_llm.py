@@ -1,11 +1,12 @@
-"""Testes unitários para generation/llm.py."""
+"""Testes unitários para generation/llm.py e profiling/profiler.py."""
 
 import unittest
 from unittest.mock import MagicMock, patch
 
 from core.config import settings
 from core.schemas import ExpertiseLevel, UserProfile
-from generation.llm import SYSTEM_PROMPTS, build_system_prompt, generate
+from generation.llm import generate
+from profiling.profiler import SYSTEM_PROMPTS, build_system_prompt
 
 
 class TestBuildSystemPrompt(unittest.TestCase):
