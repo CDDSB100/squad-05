@@ -116,6 +116,15 @@ sequenceDiagram
 - **Ollama** ([download](https://ollama.ai/download))
 - **Python 3.12+** ([download](https://www.python.org/downloads/))
 
+### Hardware Requirements
+
+| Setup | Response Time | RAM | VRAM |
+|-------|--------------|-----|------|
+| GPU (NVIDIA, ≥6GB VRAM) | ~10-30s per response | 8GB+ | 6GB+ |
+| CPU-only | ~160-200s per response | 16GB+ | — |
+
+> **Note**: With `VERIFICATION_ENABLED=true`, response time increases due to additional LLM calls for entropy sampling.
+
 ### Setup
 
 ```bash
@@ -154,6 +163,50 @@ curl http://localhost:6333/healthz           # Qdrant: "healthz check passed"
 curl http://localhost:8000/health            # API: {"status":"ok"}
 ```
 
+## Configuration
+
+Environment variables loaded from `.env` (see [`.env.example`](./.env.example)):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CHAT_MODEL` | `llama3.2:3b` | Ollama model for response generation |
+| `EMBED_MODEL` | `nomic-embed-text` | Ollama model for embeddings (768 dims) |
+| `QDRANT_URL` | `http://localhost:6333` | Qdrant server URL |
+| `QDRANT_API_KEY` | — | Qdrant API key (for authenticated servers) |
+| `COLLECTION_NAME` | `archives_v2` | Qdrant collection name |
+| `TOP_K` | `3` | Number of chunks returned by similarity search |
+| `LLM_MAX_TOKENS` | `256` | Max tokens per LLM response |
+| `HALLUCINATION_THRESHOLD` | `0.5` | Entropy threshold for hallucination detection (0.0–1.0) |
+| `VERIFICATION_ENABLED` | `true` | Enable/disable hallucination verification |
+| `VERIFICATION_PROVIDER` | `groq` | Provider: `groq` \| `ollama` \| `openrouter` |
+| `ENTROPY_NUM_SAMPLES` | `2` | Number of samples for entropy calculation |
+| `GROQ_API_KEY` | — | Groq API key (for verification + eval pipeline) |
+| `OPENROUTER_API_KEY` | — | OpenRouter API key |
+| `JWT_SECRET_KEY` | — | Secret for JWT token signing (**required**) |
+
+## Docker Deployment
+
+**Infrastructure only (Qdrant):**
+
+```bash
+docker compose --profile infra up -d
+```
+
+**Full stack (Qdrant + API + Gradio UI):**
+
+```bash
+docker compose --profile infra --profile app up -d
+```
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| API | http://localhost:8000 | REST endpoints |
+| API Docs (Swagger) | http://localhost:8000/docs | Interactive API documentation |
+| Gradio UI | http://localhost:7860 | Chat interface |
+| Qdrant Dashboard | http://localhost:6333/dashboard | Vector management |
+
+> **Note**: Ollama runs on the host, not in Docker. The API container connects to it via `host.docker.internal:11434`.
+
 ## API Reference
 
 | Endpoint | Description |
@@ -187,6 +240,25 @@ curl -X POST "http://localhost:8000/chat" \
 | `answer` | string | Generated response adapted to expertise level |
 | `hallucination_score` | float | 0.0 (grounded) to 1.0 (likely hallucinated) |
 
+**POST /auth/register:**
+
+```bash
+curl -X POST "http://localhost:8000/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "user1", "password": "secret123"}'
+# {"message": "User created successfully", "username": "user1"}
+```
+
+**POST /auth/token (OAuth2 password flow):**
+
+```bash
+curl -X POST "http://localhost:8000/auth/token" \
+  -d "username=user1&password=secret123"
+# {"access_token": "eyJ...", "token_type": "bearer"}
+```
+
+> 📝 After starting the API, open **http://localhost:8000/docs** for the interactive Swagger UI where you can test all endpoints directly.
+
 ## Project Structure
 
 ```
@@ -215,6 +287,51 @@ sb100_agents/
 └── pyproject.toml
 ```
 
+## Testing
+
+```bash
+# Unit tests (mocks Ollama + Qdrant)
+pytest tests/ -v --ignore=tests/test_integration.py
+
+# Integration tests (requires running Ollama + Qdrant)
+pytest tests/test_integration.py -v
+
+# Lint
+ruff check .
+ruff format --check .
+
+# Type checking
+mypy retrieval/ generation/ memory/ --strict
+```
+
+Coverage: ~25% (unit tests only; external services are mocked).
+
+## Evaluation Pipeline
+
+The project includes a 5-step evaluation pipeline to measure answer quality:
+
+1. **Generate questions** — extract questions from source PDFs
+2. **Collect references** — get reference answers for comparison
+3. **Run evaluation** — send questions to the API and collect responses
+4. **Judge** — evaluate response quality against references
+5. **Report** — generate evaluation report
+
+```bash
+python eval/generate_questions.py ./archives/smart_boletim.pdf --num-questions 50
+python eval/collect_references.py
+python eval/run_evaluation.py --api-url http://localhost:8000
+python eval/judge.py
+python eval/report.py
+```
+
+## Security Notes
+
+- ⚠️ Passwords are hashed with SHA-256 (not bcrypt/argon2) — adequate for MVP, not production
+- JWT tokens expire in 7 days by default
+- The `/chat` endpoint does **not** require authentication
+- CORS is restricted to localhost origins only
+- For production: replace `JWT_SECRET_KEY`, use bcrypt, add rate limiting
+
 ## Roadmap
 
 | Feature | Description |
@@ -233,6 +350,18 @@ Setup: add `ANTHROPIC_API_KEY` secret and create the `claude-auto` label.
 ## Contributing
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md). Quick summary: fork, branch (`type/TASK-NNN-description`), tests, Conventional Commits, PR.
+
+## References
+
+- Farquhar, S. et al. (2023). *Detecting Hallucinations in Large Language Models Using Semantic Entropy*. [arXiv:2302.09664](https://arxiv.org/abs/2302.09664)
+
+## Team
+
+| Name | Role | GitHub |
+|------|------|--------|
+| — | — | @— |
+| — | — | @— |
+| — | — | @— |
 
 ## License
 
