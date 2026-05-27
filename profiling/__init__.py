@@ -1,10 +1,9 @@
 """Profiling module for user adaptation and intent filtering.
 
-Note:
-    This module is currently a placeholder. Profile-based adaptation
-    is handled at prompt generation time in generation/llm.py.
-    Intent filtering for domain classification is planned for future
-    implementation.
+This module provides profile-based response adaptation through
+system prompt selection based on user expertise level.
 """
 
-__all__: list[str] = []
+from profiling.profiler import SYSTEM_PROMPTS, build_system_prompt
+
+__all__ = ["SYSTEM_PROMPTS", "build_system_prompt"]
